@@ -81,9 +81,9 @@ const withCookie = (res, cookie) => { if (cookie) res.headers.append("set-cookie
 async function findPlayer(req, env) {
   const token = readCookie(req);
   if (!token) return null;
-  const p = await env.DB.prepare("SELECT id, seen_at FROM players WHERE token_hash = ?").bind(await sha256(token)).first();
+  const p = await env.DB.prepare("SELECT id, seen_at FROM scatter_players WHERE token_hash = ?").bind(await sha256(token)).first();
   if (!p) return null;
-  if (now() - p.seen_at >= SEEN_EVERY) await env.DB.prepare("UPDATE players SET seen_at = ? WHERE id = ?").bind(now(), p.id).run();
+  if (now() - p.seen_at >= SEEN_EVERY) await env.DB.prepare("UPDATE scatter_players SET seen_at = ? WHERE id = ?").bind(now(), p.id).run();
   return p;
 }
 
@@ -93,7 +93,7 @@ async function needPlayer(req, env) {
   if (found) return { player: found };
   if (!(await rateLimit(env, req, "new-guest", 3, 3600))) throw new Oops("Too many new players from here. Try again later.", 429);
   const token = newToken(), t = now();
-  const r = await env.DB.prepare("INSERT INTO players (token_hash, created_at, seen_at) VALUES (?, ?, ?) RETURNING id")
+  const r = await env.DB.prepare("INSERT INTO scatter_players (token_hash, created_at, seen_at) VALUES (?, ?, ?) RETURNING id")
     .bind(await sha256(token), t, t).first();
   return { player: r, cookie: setCookie(token) };
 }
@@ -104,9 +104,9 @@ async function rateLimit(env, req, action, limit, windowSecs) {
   const key = action + ":" + (await sha256("ip:" + ip)).slice(0, 32);
   const t = now(), windowStart = t - (t % windowSecs);
   const row = await env.DB.prepare(
-    `INSERT INTO rate_limits (key, window_start, count) VALUES (?, ?, 1)
+    `INSERT INTO scatter_rate_limits (key, window_start, count) VALUES (?, ?, 1)
      ON CONFLICT (key, window_start) DO UPDATE SET count = count + 1 RETURNING count`).bind(key, windowStart).first();
-  if (Math.random() < 0.02) await env.DB.prepare("DELETE FROM rate_limits WHERE window_start < ?").bind(t - 86400).run();
+  if (Math.random() < 0.02) await env.DB.prepare("DELETE FROM scatter_rate_limits WHERE window_start < ?").bind(t - 86400).run();
   return row.count <= limit;
 }
 
@@ -120,7 +120,7 @@ async function body(req) {
 async function view(env, player, day) {
   const out = { day, nextIn: dayEnd(day) - now(), time: S.TIME, state: "new" };
   const s = player && await env.DB.prepare(
-    `SELECT s.started_at, s.answers, l.id AS entry, l.hash FROM sheets s LEFT JOIN ledger l ON l.kind = 'sheet' AND l.sheet_id = s.id
+    `SELECT s.started_at, s.answers, l.id AS entry, l.hash FROM scatter_sheets s LEFT JOIN scatter_ledger l ON l.kind = 'sheet' AND l.sheet_id = s.id
      WHERE s.player_id = ? AND s.day = ?`).bind(player.id, day).first();
   if (!s) return out;
   const { letter, categories } = await dayEntry(env.DB, day, now());
@@ -141,7 +141,7 @@ async function start(req, env) {
   const day = utcDay();
   await dayEntry(env.DB, day, now());
   const { player, cookie } = await needPlayer(req, env);
-  await env.DB.prepare("INSERT INTO sheets (player_id, day, started_at) VALUES (?, ?, ?) ON CONFLICT (player_id, day) DO NOTHING")
+  await env.DB.prepare("INSERT INTO scatter_sheets (player_id, day, started_at) VALUES (?, ?, ?) ON CONFLICT (player_id, day) DO NOTHING")
     .bind(player.id, day, now()).run();
   return withCookie(json(await view(env, player, day)), cookie);
 }
@@ -151,7 +151,7 @@ async function seal(req, env) {
   const b = await body(req);
   const player = await findPlayer(req, env);
   if (!player) throw new Oops("Press START first.", 401);
-  const s = typeof b.day === "string" && await env.DB.prepare("SELECT id, day, started_at, answers FROM sheets WHERE player_id = ? AND day = ?")
+  const s = typeof b.day === "string" && await env.DB.prepare("SELECT id, day, started_at, answers FROM scatter_sheets WHERE player_id = ? AND day = ?")
     .bind(player.id, b.day).first();
   if (!s) throw new Oops("Press START first.", 404);
   if (s.answers) throw new Oops("Your sheet is already sealed.", 409);
@@ -165,7 +165,7 @@ async function seal(req, env) {
   const record = JSON.stringify({ day: s.day, player: player.id, letter, answers, started: s.started_at, t });
   for (let i = 0; i < 6; i++) {
     const stmts = [
-      env.DB.prepare("UPDATE sheets SET answers = ?, sealed_at = ? WHERE id = ? AND answers IS NULL").bind(JSON.stringify(answers), t, s.id),
+      env.DB.prepare("UPDATE scatter_sheets SET answers = ?, sealed_at = ? WHERE id = ? AND answers IS NULL").bind(JSON.stringify(answers), t, s.id),
       await sheetInsert(env.DB, await head(env.DB), { day: s.day, sheetId: s.id, record, t }),
     ];
     let res;
@@ -173,7 +173,7 @@ async function seal(req, env) {
     catch (e) {
       if (!isUnique(e)) throw e;
       // someone else sealed something first: build on the new head (unless it was this same sheet, sent twice)
-      if ((await env.DB.prepare("SELECT answers FROM sheets WHERE id = ?").bind(s.id).first()).answers) throw new Oops("Your sheet is already sealed.", 409);
+      if ((await env.DB.prepare("SELECT answers FROM scatter_sheets WHERE id = ?").bind(s.id).first()).answers) throw new Oops("Your sheet is already sealed.", 409);
       continue;
     }
     if (!res[0].meta.changes) throw new Oops("Your sheet is already sealed.", 409);

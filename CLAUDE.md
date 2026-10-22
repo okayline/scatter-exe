@@ -7,7 +7,7 @@ SCATTER.EXE: a daily Scattergories-style game. One letter and 8 categories a UTC
 - **The ledger is a hash chain** (`src/ledger.js`): a `day` entry (its record is the day's letter and categories, picked from the hash before it) and one `sheet` entry per player per day, written in the same D1 batch as the sheet. Records hold player ids, never names. Don't weaken `prev_hash UNIQUE`.
 - **Sheets stay secret until the day closes.** The letter and categories are only sent to a player once they press START, and the server keeps the start time.
 - The frame, font and colours are copied from TILT.EXE (`clutch-feed-tilt/public/index.html`, itself from 4Dungeon); `public/fonts/VT323-Regular.ttf` is OFL (see `OFL.txt`).
-- **Database changes** need a file in `migrations/`, `schema.sql` updated to match, and the live `scatter-db` migrated before the push that needs it.
+- **Database changes** need a file in `migrations/`, `schema.sql` updated to match, and the live `moba-beat` database migrated before the push that needs it. SCATTER.EXE's tables live there (shared with moba-beat and Daily Pitch), every one named `scatter_...`.
 - **Keep testing quick**: `npm test` must pass before any commit, plus one quick check of whatever changed. Expected values come from hand-worked examples or node:crypto, not the code under test.
 - Every release bumps `VERSION` in `public/engine/version.js` and adds a `CHANGELOG.md` entry (a test checks they match). No new dependencies without asking. Times in changelogs are Hawaii time (HST). No browser popups (confirm/alert/prompt).
 
