@@ -55,9 +55,9 @@ test("the day's entry is sealed by the first request; its letter and categories 
   const t = await call("ann", "GET", "/api/today");
   assert.deepEqual(t, { status: 200, day: "2027-01-01", nextIn: 16 * 3600, time: 120, state: "new" });
   const p = pick("0".repeat(64)), rec = JSON.stringify({ day: "2027-01-01", ...p });
-  assert.deepEqual(env.DB.raw.prepare("SELECT kind, record, prev_hash, hash FROM ledger").all().map((r) => ({ ...r })),
+  assert.deepEqual(env.DB.raw.prepare("SELECT kind, record, prev_hash, hash FROM scatter_ledger").all().map((r) => ({ ...r })),
     [{ kind: "day", record: rec, prev_hash: "0".repeat(64), hash: sha("0".repeat(64) + "|" + rec) }]);
-  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM players").get().n, 0, "just looking makes no player");
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM scatter_players").get().n, 0, "just looking makes no player");
   const s = await call("ann", "POST", "/api/start");
   assert.equal(s.state, "playing");
   assert.equal(s.letter, p.letter);
@@ -78,7 +78,7 @@ test("a sheet is sealed once, on the ledger, with clean answers; a wrong letter 
   assert.equal(done.state, "sealed");
   const kept = [`${L.toLowerCase()}ne two`, "", ...Array(6).fill(L + "x")];
   assert.deepEqual(done.answers, kept);
-  const [day, sheet] = env.DB.raw.prepare("SELECT kind, record, prev_hash, hash FROM ledger ORDER BY id").all();
+  const [day, sheet] = env.DB.raw.prepare("SELECT kind, record, prev_hash, hash FROM scatter_ledger ORDER BY id").all();
   const rec = JSON.stringify({ day: s.day, player: 1, letter: L, answers: kept, started: T0, t: T0 + 30 });
   assert.equal(sheet.record, rec);
   assert.equal(sheet.prev_hash, day.hash);
@@ -90,5 +90,5 @@ test("a sheet is sealed once, on the ledger, with clean answers; a wrong letter 
   wait(131);
   assert.equal((await call("bo", "POST", "/api/sheet", { day: b.day, answers: Array(8).fill("") })).status, 409);
   assert.equal((await call("bo", "GET", "/api/today")).state, "late");
-  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM ledger WHERE kind = 'sheet'").get().n, 1);
+  assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM scatter_ledger WHERE kind = 'sheet'").get().n, 1);
 });

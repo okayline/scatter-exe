@@ -1,8 +1,8 @@
--- SCATTER.EXE database (Cloudflare D1: scatter-db)
---   npx wrangler d1 execute scatter-db --remote --file=schema.sql
+-- SCATTER.EXE database (Cloudflare D1: the moba-beat database; every table is named scatter_...)
+--   npx wrangler d1 execute moba-beat --remote --file=schema.sql
 
 -- A player is a browser cookie. The cookie holds a random token; only its SHA-256 hash is stored.
-CREATE TABLE IF NOT EXISTS players (
+CREATE TABLE IF NOT EXISTS scatter_players (
   id          INTEGER PRIMARY KEY,
   token_hash  TEXT NOT NULL UNIQUE,
   created_at  INTEGER NOT NULL,       -- unix seconds
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS players (
 );
 
 -- New players, counted per hashed IP and hour.
-CREATE TABLE IF NOT EXISTS rate_limits (
+CREATE TABLE IF NOT EXISTS scatter_rate_limits (
   key           TEXT NOT NULL,
   window_start  INTEGER NOT NULL,
   count         INTEGER NOT NULL,
@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 
 -- Sheets: one per player per UTC day. Made when the player presses START (the server keeps the time); the answers
 -- are filled in once, when it is sealed on the ledger in the same D1 batch (src/ledger.js).
-CREATE TABLE IF NOT EXISTS sheets (
+CREATE TABLE IF NOT EXISTS scatter_sheets (
   id          INTEGER PRIMARY KEY,
-  player_id   INTEGER NOT NULL REFERENCES players(id),
+  player_id   INTEGER NOT NULL REFERENCES scatter_players(id),
   day         TEXT NOT NULL,          -- "2027-01-01" (UTC)
   started_at  INTEGER NOT NULL,       -- unix seconds
   answers     TEXT,                   -- JSON list of 8 answers ("" for a blank), once sealed
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS sheets (
 
 -- One SHA-256 hash chain: one entry per UTC day (its letter and categories) and one per sealed sheet (src/ledger.js).
 -- Records hold player ids, never names.
-CREATE TABLE IF NOT EXISTS ledger (
+CREATE TABLE IF NOT EXISTS scatter_ledger (
   id          INTEGER PRIMARY KEY,
   kind        TEXT NOT NULL,          -- day | sheet
   day         TEXT NOT NULL,
@@ -41,5 +41,5 @@ CREATE TABLE IF NOT EXISTS ledger (
   hash        TEXT NOT NULL UNIQUE,   -- SHA-256(prev_hash + "|" + record)
   created_at  INTEGER NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS ledger_one_sheet ON ledger (sheet_id) WHERE kind = 'sheet';
-CREATE UNIQUE INDEX IF NOT EXISTS ledger_one_day ON ledger (day) WHERE kind = 'day';
+CREATE UNIQUE INDEX IF NOT EXISTS scatter_ledger_one_sheet ON scatter_ledger (sheet_id) WHERE kind = 'sheet';
+CREATE UNIQUE INDEX IF NOT EXISTS scatter_ledger_one_day ON scatter_ledger (day) WHERE kind = 'day';

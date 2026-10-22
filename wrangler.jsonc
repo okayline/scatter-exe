@@ -9,12 +9,12 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
+  // SCATTER.EXE's tables live in the moba-beat database; every one of them is named scatter_...
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "scatter-db",
-      // from: npx wrangler d1 create scatter-db (not made yet)
-      "database_id": ""
+      "database_name": "moba-beat",
+      "database_id": "8ced4f17-0ae0-4852-b02c-5003d7f08c5d"
     }
   ]
 }

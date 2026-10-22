@@ -24,7 +24,7 @@ export async function sha256(text) {
 }
 
 export async function head(db) {
-  const h = await db.prepare("SELECT hash FROM ledger ORDER BY id DESC LIMIT 1").first();
+  const h = await db.prepare("SELECT hash FROM scatter_ledger ORDER BY id DESC LIMIT 1").first();
   return h ? h.hash : GENESIS;
 }
 
@@ -35,8 +35,8 @@ export const isUnique = (e) => /UNIQUE/i.test(String(e && e.message));
 export async function sheetInsert(db, prev, { day, sheetId, record, t }) {
   const hash = await sha256(prev + "|" + record);
   return db.prepare(
-    `INSERT INTO ledger (kind, day, sheet_id, record, prev_hash, hash, created_at)
-     SELECT 'sheet', ?1, id, ?2, ?3, ?4, ?5 FROM sheets WHERE id = ?6 AND sealed_at = ?5`)
+    `INSERT INTO scatter_ledger (kind, day, sheet_id, record, prev_hash, hash, created_at)
+     SELECT 'sheet', ?1, id, ?2, ?3, ?4, ?5 FROM scatter_sheets WHERE id = ?6 AND sealed_at = ?5`)
     .bind(day, record, prev, hash, t, sheetId);
 }
 
@@ -45,16 +45,16 @@ export async function sheetInsert(db, prev, { day, sheetId, record, t }) {
 // the winner's.
 export async function dayEntry(db, day, t) {
   for (let i = 0; i < 4; i++) {
-    const got = await db.prepare("SELECT record FROM ledger WHERE kind = 'day' AND day = ?").bind(day).first();
+    const got = await db.prepare("SELECT record FROM scatter_ledger WHERE kind = 'day' AND day = ?").bind(day).first();
     if (got) { const r = JSON.parse(got.record); return { letter: r.letter, categories: r.categories }; }
     // the categories of the days before, newest first: enough of them to cover the whole list
-    const { results } = await db.prepare("SELECT record FROM ledger WHERE kind = 'day' ORDER BY id DESC LIMIT ?")
+    const { results } = await db.prepare("SELECT record FROM scatter_ledger WHERE kind = 'day' ORDER BY id DESC LIMIT ?")
       .bind(Math.ceil(CATEGORIES.length / PER_DAY)).all();
     const prev = await head(db);
     const { letter, categories } = pick(prev, results.map((r) => JSON.parse(r.record).categories));
     const record = JSON.stringify({ day, letter, categories });
     try {
-      await db.prepare("INSERT INTO ledger (kind, day, sheet_id, record, prev_hash, hash, created_at) VALUES ('day', ?, NULL, ?, ?, ?, ?)")
+      await db.prepare("INSERT INTO scatter_ledger (kind, day, sheet_id, record, prev_hash, hash, created_at) VALUES ('day', ?, NULL, ?, ?, ?, ?)")
         .bind(day, record, prev, await sha256(prev + "|" + record), t).run();
       return { letter, categories };
     } catch (e) { if (!isUnique(e)) throw e; }
