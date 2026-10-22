@@ -4,6 +4,14 @@ Newest first. Times are Hawaii time (HST).
 
 ---
 
+## v0.1.1 — "Right Table"
+**Thu Oct 22, 2026 · 12:22 AM HST**
+
+- The live game reads and writes its tables in the moba-beat database, where they were made: `scatter_players`, `scatter_rate_limits`, `scatter_sheets` and `scatter_ledger`. Every query, `schema.sql` and `migrations/001_init.sql` use the `scatter_` names. This went live with the 12:22 AM merge; this entry and the version number were added after.
+- Removed: the binding to `scatter-db` (made empty by the first build, no tables) and its blank database id.
+
+---
+
 ## v0.1.0 — "First Letter"
 **Wed Oct 21, 2026 · 10:18 PM HST**
 
