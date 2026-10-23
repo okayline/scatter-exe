@@ -9,6 +9,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const pad = (s, n) => s.length >= n ? s.slice(0, n) : s + " ".repeat(n - s.length);
 
 let T = null;          // the server's view of today (worker.js view)
+let R = null;          // yesterday's results while they are on screen (worker.js results), else null
 let deadline = 0;      // when the time is up, on this page's clock (performance.now seconds)
 let sending = false;
 
@@ -33,12 +34,21 @@ const saveDraft = (a) => { try { localStorage.setItem(draftKey(), JSON.stringify
 
 function draw() {
   const top = "+" + "=".repeat(FW - 2) + "+", dash = "+" + "-".repeat(FW - 2) + "+";
-  const letter = T.letter || "?";
-  const right = `${T.day}   LETTER `;
+  const letter = (R ? R.letter : T.letter) || "?";
+  const right = `${R ? R.day : T.day}   LETTER `;
   const head = "|" + seg([[" SCATTER.EXE", "b"], [" ".repeat(FW - 2 - 12 - right.length - 1 - 12), ""], [right, "t"], [letter, "g"]], FW - 2 - 12)
     + `<span id="time" class="b">${pad("", 12)}</span>|`;
   const rows = [];
-  if (T.state === "playing" || T.state === "sealed") {
+  if (R) {
+    // two lines a category: the category and how it went, then your answer
+    rows.push(line([[""]]));
+    R.rows.forEach((r, i) => {
+      const label = " " + pad(`${String(i + 1).padStart(2)}. ${r.category}`, 40) + "     ";
+      const res = !r.answer ? ["BLANK  0", "d"] : r.score ? ["NOBODY ELSE  +1", "g"] : [`${r.others} ${r.others > 1 ? "PEOPLE" : "PERSON"} WROTE IT  0`, "t"];
+      rows.push(line([[label, "t"], res]));
+      rows.push(line([["     " + (r.answer || "-"), r.answer ? "b" : "d"]]));
+    });
+  } else if (T.state === "playing" || T.state === "sealed") {
     const draft = T.state === "sealed" ? T.answers : loadDraft();
     rows.push(line([[""]]));
     T.categories.forEach((c, i) => {
@@ -55,15 +65,17 @@ function draw() {
       : [["ONE LETTER. 8 CATEGORIES. 2:00.", "b"], ["", ""],
          ["WRITE ONE ANSWER FOR EACH CATEGORY,", "t"], ["EVERY ONE STARTING WITH THE DAY'S LETTER.", "t"], ["", ""],
          ["THE GOAL: ANSWERS NOBODY ELSE WILL GIVE.", "t"], ["YOUR SHEET IS SEALED ON THE LEDGER WHEN THE TIME IS UP.", "t"],
-         ["(COMPARING SHEETS AND SCORES ARE NOT BUILT YET.)", "d"], ["", ""],
+         ["", ""],
          ["ONE TRY A DAY. THE LETTER SHOWS WHEN YOU START.", "t"]];
     const blank = Math.floor((17 - say.length) / 2);
     for (let i = 0; i < 17; i++) { const s = say[i - blank]; rows.push(s && s[0] ? centred(s[0], s[1]) : line([[""]])); }
   }
   const status = `<span id="status">${seg([[" " + statusText(), "t"]], FW - 2)}</span>`;
-  const buttons = T.state === "new" ? [["[S]TART", "btn", "s"]]
+  const results = [["[R]ESULTS", "btn", "r"], ["   ", ""]];
+  const buttons = R ? [["[B]ACK", "btn", "b"]]
+    : T.state === "new" ? [...results, ["[S]TART", "btn", "s"]]
     : T.state === "playing" ? [["[D]ONE", "btn", "d"]]
-    : [[`NEXT LETTER IN ${hhmm(T.nextIn)}`, "d"]];
+    : [...results, [`NEXT LETTER IN ${hhmm(T.nextIn)}`, "d"]];
   const width = buttons.reduce((n, [t]) => n + t.length, 0);
   $("frame").innerHTML = [top, head, top, ...rows, top, "|" + status + "|", dash,
     line([[" ".repeat(FW - 3 - width), ""], ...buttons, [" ", ""]]), top].join("\n");
@@ -71,6 +83,7 @@ function draw() {
 }
 
 function statusText() {
+  if (R) return `YOU SCORED ${R.total} OF ${R.rows.length}. ${R.players} PLAYER${R.players > 1 ? "S" : ""} SEALED A SHEET THAT DAY.`;
   if (T.state === "sealed") return `SEALED ON THE LEDGER: ENTRY #${T.entry}  ${T.hash.slice(0, 16)}...`;
   if (T.state === "playing") {
     const bad = boxes().findIndex((b) => !S.fits(b.value, T.letter));
@@ -86,7 +99,7 @@ const boxes = () => [...document.querySelectorAll(".ans")];
 function tick() {
   const el = $("time");
   if (!el) return;
-  if (T.state !== "playing") { el.innerHTML = esc(pad(T.state === "sealed" ? "  SEALED" : "  TIME " + clock(T.time), 12)); return; }
+  if (T.state !== "playing") { el.innerHTML = esc(pad(R ? "  RESULTS" : T.state === "sealed" ? "  SEALED" : "  TIME " + clock(T.time), 12)); return; }
   const left = Math.max(0, deadline - performance.now() / 1000);
   el.className = left <= 10 ? "e" : "b";
   el.textContent = pad("  TIME " + clock(Math.ceil(left)), 12);
@@ -108,8 +121,18 @@ function show(t) {
   if (T.state === "playing") (boxes().find((b) => !b.value) || boxes()[0]).focus();
 }
 
+// Yesterday's results: your sheet from the previous UTC day against everyone's, once that day is over.
+async function showResults() {
+  if (!T.day || R || T.state === "playing" || sending) return;
+  sending = true;
+  try { R = await api("GET", "/api/results?day=" + new Date(Date.parse(T.day) - 86400000).toISOString().slice(0, 10)); draw(); }
+  catch (e) { setStatus(e.message.toUpperCase(), "e"); }
+  sending = false;
+}
+function closeResults() { if (R) { R = null; draw(); } }
+
 async function begin() {
-  if (T.state !== "new" || sending) return;
+  if (T.state !== "new" || R || sending) return;
   sending = true;
   try { show(await api("POST", "/api/start")); }
   catch (e) { setStatus(e.message.toUpperCase(), "e"); }
@@ -143,6 +166,7 @@ $("frame").addEventListener("input", (ev) => {
 $("frame").addEventListener("pointerdown", (ev) => {
   const k = ev.target.closest("[data-k]")?.dataset.k;
   if (k === "s") begin(); else if (k === "d") { ev.preventDefault(); send(); }
+  else if (k === "r") showResults(); else if (k === "b") closeResults();
 });
 document.addEventListener("keydown", (ev) => {
   if (!T) return;
@@ -155,7 +179,7 @@ document.addEventListener("keydown", (ev) => {
     return;
   }
   const k = ev.key.toLowerCase();
-  if (k === "s") begin(); else if (k === "d") send();
+  if (k === "s") begin(); else if (k === "d") send(); else if (k === "r") showResults(); else if (k === "b" || k === "escape") closeResults();
 });
 
 $("version").textContent = "v" + VERSION;
