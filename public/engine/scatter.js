@@ -12,19 +12,44 @@ export const MAX_LEN = 40;    // characters in one answer
 // every letter but Q, X and Z
 export const LETTERS = "ABCDEFGHIJKLMNOPRSTUVWY".split("");
 
-// 24 categories: five kept from the first list, and nineteen prompts that each have a few obvious answers to dodge.
-// Anyone should be able to answer by imagination, with no real-life experience needed, and a category must fit the
-// page: at most 36 characters.
+// The starter list from the design doc ("SCATTER.EXE: design idea", Oct 22 2026), 150 categories in five groups.
 export const CATEGORIES = [
-  // Kept
-  "Pizza toppings", "Ice cream flavours", "Boat names", "Wishes for a genie", "Superpowers you'd want",
-  // Fresh
-  "Cheat codes for real life", "Tiny superpowers", "Potion flavours", "Advice from an NPC",
-  "Startups a dragon would found", "Secret society names", "Names for a band of wizards", "Ways to befriend a dragon",
-  "Sidekick names", "Spells for a party", "New Pokemon types", "New names for the moon",
-  "Rules a cat would make", "What robots love about humans",
-  "What the final boss does on weekends", "Dungeon treasures", "Things a friendly ghost whispers",
-  "Names for a hero's pet", "Side quests in a cozy village",
+  // Gaming
+  "Pokemon", "Video game characters", "Video game villains", "Video games", "Game consoles or handhelds",
+  "Things you yell at a teammate", "Excuses after losing", "Bosses you rage quit on", "Things in a Minecraft chest",
+  "Fortnite skins", "Fighting game characters", "Mario Kart tracks or items", "Video game weapons", "Game studios",
+  "Things in a loot box", "Gamer words (gg, nerf, op...)", "Gamer tags you'd never use", "RPG classes",
+  "Things in a dungeon", "Zelda things", "Mobile games", "Card or board games", "Esports teams or players",
+  "Things that lag", "Video game sound effects", "Potions or power-ups", "Things a final boss would say",
+  "Game genres", "Retro game things", "Reasons to stay up until 4am",
+  // Internet
+  "Memes", "Websites", "Apps on your phone", "YouTubers", "Streamers", "Things that went viral", "Internet slang",
+  "Gen-z slang", "Emojis (in words)", "Usernames", "Things in a comment section", "Subreddits", "TikTok trends",
+  "Reasons you got banned", "Things you Google at 3am", "Things in a group chat", "Bad passwords",
+  "Things that need an update", "Things a Discord mod says", "Podcast names", "Things people review online",
+  "Clickbait titles", "Things you unsubscribe from", "Influencer products", "Wi-Fi network names",
+  "Things with a loading bar", "Crypto words", "Things that got cancelled", "Reasons to log off",
+  "Things you screenshot",
+  // Pop culture
+  "Movies", "TV shows", "Anime", "Anime characters", "Superheroes", "Villains", "Cartoon characters", "Songs",
+  "Bands or rappers", "Celebrities", "Famous animals", "Horror movie monsters", "Star Wars things", "Movie quotes",
+  "Reality TV shows", "Fictional places", "Wizards or witches", "Robots or AIs", "Book titles", "Sports teams",
+  "Athletes", "Brands", "Fast food chains", "Cereals", "Sneakers or shoe brands",
+  // Silly and everyday
+  "Things in a fridge", "Snacks", "Pizza toppings", "Things at a gas station", "Things in a junk drawer",
+  "Things you shouldn't microwave", "Things that are sticky", "Things that smell bad", "Things a cat knocks over",
+  "Bad pet names", "Animals", "Animals that would win a fight", "Things for the zombie apocalypse",
+  "Things in your pocket", "Reasons to be late", "Things your mom says", "Things a pirate says",
+  "Things you whisper", "Things that are round", "Things that are loud", "Words that sound funny", "Food at 2am",
+  "Ice cream flavours", "Drinks", "Things at a sleepover", "Things in a backpack", "Bad tattoo ideas",
+  "Crimes you'd only do in GTA", "Boat names", "Things to buy with a million dollars", "Body parts",
+  "Things that break", "Things in a haunted house", "Famous last words", "Things you'd say to a ghost",
+  // Places, things and vibes
+  "Countries", "Cities", "US states", "Things in space", "Jobs", "Fantasy jobs", "Things at a theme park",
+  "Things at school", "Classes at wizard school", "Things at the beach", "Things in a castle", "Mythical creatures",
+  "Gods or legends", "Dinosaurs", "Things that fly", "Vehicles", "Tools", "Sports", "Dances", "Hairstyles",
+  "Clothes", "Colours", "Things with wheels", "Things in a casino", "Things that are cursed",
+  "Main character moments", "Things that are mid", "Red flags", "Things that give you aura", "NPC behaviour",
 ];
 
 // A small seeded random number generator (mulberry32), from the first 8 hex digits of a hash.
@@ -61,27 +86,3 @@ export const clean = (s) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0,
 
 // Does this answer count for the letter? Blank always does (it scores 0); otherwise its first character is the letter.
 export const fits = (answer, letter) => { const a = clean(answer); return !a || a[0].toUpperCase() === letter; };
-
-// When two answers count as the same: capitals, accents, spaces and punctuation don't matter ("Mr. Beast", "mr beast"
-// and "MrBeast" are one answer; "Café" and "cafe" are one). Nothing else is merged: "Pikachus" is not "Pikachu", and a
-// misspelling is a different answer. Blank (or nothing but marks) has no key. Every rule about sameness is this one line.
-export const sameKey = (answer) => String(answer ?? "").normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-
-// The end-of-day tally. `sheets` is every sealed sheet of one day, each a list of PER_DAY answers. It counts, for each
-// category, how many sheets gave each answer (by sameKey; only the same category counts): { players, counts }, where
-// counts[i] is { key: how many }. Nothing in it says who. The Worker works it out once, after the day's last sheet.
-export function tally(sheets) {
-  const counts = Array.from({ length: PER_DAY }, () => ({}));
-  for (const sheet of sheets) {
-    for (let i = 0; i < PER_DAY; i++) { const k = sameKey(sheet[i]); if (k) counts[i][k] = (counts[i][k] || 0) + 1; }
-  }
-  return { players: sheets.length, counts };
-}
-
-// One sheet scored against the day's tally: for each category { answer, others, score }. `others` is how many other
-// sheets gave the same answer; the score is 1 for an answer nobody else gave, 0 for a shared answer or a blank.
-export const score = (answers, t) => Array.from({ length: PER_DAY }, (_, i) => {
-  const answer = answers[i] ?? "", k = sameKey(answer);
-  const others = k ? t.counts[i][k] - 1 : 0;
-  return { answer, others, score: k && !others ? 1 : 0 };
-});

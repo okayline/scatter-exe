@@ -9,9 +9,6 @@
 //   POST /api/start                  start today's sheet: the server keeps the start time (once a day). Same answer as today.
 //   POST /api/sheet {day, answers}   seal your sheet on the ledger: 8 answers, each blank or starting with the letter,
 //                                    within the time plus GRACE seconds of your start
-//   GET  /api/results?day=           your sheet scored against the day's tally of every sealed sheet, once the day is over:
-//                                    { day, letter, players, total, rows: [{ category, answer, others, score }] }.
-//                                    Only your own answers come back, and only how many others gave the same one.
 //
 // The rules are public/engine/scatter.js, the same file the page loads.
 
@@ -49,7 +46,6 @@ const ROUTES = {
   "GET /api/today": today,
   "POST /api/start": start,
   "POST /api/sheet": seal,
-  "GET /api/results": results,
 };
 
 // ---------- helpers (copied from clutch-feed-tilt src/worker.js) ----------
@@ -184,38 +180,4 @@ async function seal(req, env) {
     return json(await view(env, player, s.day));
   }
   throw new Error("The ledger is busy. Try again.");
-}
-
-// Your sheet for a finished day, scored against the day's tally (S.score). A day's sheets stay secret until it is over, and
-// even then only your own answers are returned, with how many others gave the same one. The tally is worked out once, from
-// all the day's sealed sheets, and kept (scatter_tally): after that a request reads your sheet and one tally row, however
-// many players there were. It waits until the last sheet that could still arrive has (a sheet may land TIME + GRACE
-// seconds after its start, and a start can be in the last seconds of the day).
-async function results(req, env, url) {
-  const day = url.searchParams.get("day") || "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Oops("Which day?");
-  if (now() < dayEnd(day) + S.TIME + S.GRACE) throw new Oops("Results come after the day is over.", 409);
-  const player = await findPlayer(req, env);
-  const mine = player && await env.DB.prepare("SELECT answers FROM scatter_sheets WHERE player_id = ? AND day = ? AND answers IS NOT NULL").bind(player.id, day).first();
-  if (!mine) throw new Oops("You didn't seal a sheet that day.", 404);
-  const entry = await env.DB.prepare("SELECT record FROM scatter_ledger WHERE kind = 'day' AND day = ?").bind(day).first();
-  const { letter, categories } = JSON.parse(entry.record);
-  const t = await tallyFor(env, day);
-  const rows = S.score(JSON.parse(mine.answers), t).map((r, i) => ({ category: categories[i], ...r }));
-  return json({ day, letter, players: t.players, total: rows.reduce((n, r) => n + r.score, 0), rows });
-}
-
-// The day's tally: the stored row, or (the first time) made from all the day's sealed sheets and stored. Two requests at
-// once can't both store one (day is the key); the loser reads the winner's.
-async function tallyFor(env, day) {
-  const read = () => env.DB.prepare("SELECT players, counts FROM scatter_tally WHERE day = ?").bind(day).first();
-  let row = await read();
-  if (!row) {
-    const { results: sheets } = await env.DB.prepare("SELECT answers FROM scatter_sheets WHERE day = ? AND answers IS NOT NULL").bind(day).all();
-    const t = S.tally(sheets.map((s) => JSON.parse(s.answers)));
-    await env.DB.prepare("INSERT INTO scatter_tally (day, players, counts, made_at) VALUES (?, ?, ?, ?) ON CONFLICT (day) DO NOTHING")
-      .bind(day, t.players, JSON.stringify(t.counts), now()).run();
-    row = await read();
-  }
-  return { players: row.players, counts: JSON.parse(row.counts) };
 }

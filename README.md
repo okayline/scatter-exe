@@ -2,7 +2,7 @@
 
 One letter. 8 categories. 2:00. Score only the answers nobody else gave.
 
-A daily Scattergories-style game. Every UTC day has one letter (never Q, X or Z) and 8 categories from a list of 24,
+A daily Scattergories-style game. Every UTC day has one letter (never Q, X or Z) and 8 categories from a list of 150,
 the same for everyone. Press START and you get two minutes to write one answer per category, each starting with the
 letter (blank is allowed). Your sheet is sealed on a SHA-256 hash-chain ledger when the time is up.
 
@@ -10,9 +10,9 @@ letter (blank is allowed). Your sheet is sealed on a SHA-256 hash-chain ledger w
 - **Worker**: `src/worker.js` (Cloudflare Worker + D1: `scatter_` tables in the shared `moba-beat` database), API listed at the top of the file.
 - **Ledger**: `src/ledger.js`. The day's entry holds its letter and categories; each sheet is its own entry.
 - **Page**: `public/index.html` and `public/app.js`, an 80-column text frame in 4Dungeon's look.
-- **Results**: once a day is over, `GET /api/results?day=` compares your sheet with every sealed sheet of that day: an answer nobody else gave in that category scores 1, a shared one or a blank 0. The day's tally is worked out once, after the last possible sheet has arrived, and kept in `scatter_tally` (`migrations/002_tally.sql`). What counts as the same answer is `sameKey` in `public/engine/scatter.js`.
 
-Not built yet: a ledger page, save codes and passkeys (shared Accounts), registry checkpoints.
+Not built yet: comparing sheets at the end of the day (an answer nobody else gave scores 1, a shared one 0),
+results, a ledger page, save codes and passkeys (shared Accounts), registry checkpoints.
 
 ## Setting it up
 

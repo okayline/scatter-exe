@@ -43,12 +43,3 @@ CREATE TABLE IF NOT EXISTS scatter_ledger (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS scatter_ledger_one_sheet ON scatter_ledger (sheet_id) WHERE kind = 'sheet';
 CREATE UNIQUE INDEX IF NOT EXISTS scatter_ledger_one_day ON scatter_ledger (day) WHERE kind = 'day';
-
--- The end-of-day tally: for each finished day, how many sealed sheets gave each answer in each category (sameKey).
--- Written once, after the last possible sheet has arrived, and never changed (src/worker.js results).
-CREATE TABLE IF NOT EXISTS scatter_tally (
-  day      TEXT PRIMARY KEY,          -- "2027-01-01" (UTC)
-  players  INTEGER NOT NULL,          -- sealed sheets that day
-  counts   TEXT NOT NULL,             -- JSON: one { sameKey: how many } per category
-  made_at  INTEGER NOT NULL           -- unix seconds
-);
