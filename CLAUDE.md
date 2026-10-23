@@ -1,5 +1,14 @@
 # Working notes for scatter-exe
 
+## Rules for every repo
+
+- **Push only when the user says to.** Build and commit locally as asked.
+- **Ask before adding anything that wasn't asked for** (a button, a screen, a message, a page, a feature), even a small one. The owner would rather be asked than remove it later.
+- **Keep testing quick: 2-3 mins at most. Don't test for edge cases.**
+- **No new dependencies** without asking.
+- Times in changelogs are Hawaii time (HST).
+
+
 SCATTER.EXE: a daily Scattergories-style game. One letter and 8 categories a UTC day, the same for everyone, 2:00 to write one answer per category. Design doc: the Claude Doc "SCATTER.EXE: design idea" (https://claude.ai/artifact/5ciLoQfVvzGnNexwwZQ1rx).
 
 - **Push only when the user says to.** Once the Worker is connected to this repo, a push to `main` is a release.
