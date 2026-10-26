@@ -4,6 +4,16 @@ Newest first. Times are Hawaii time (HST).
 
 ---
 
+## v0.2.0 — "Carry"
+**Mon Oct 26, 2026 · 12:39 AM HST**
+
+- **[USER] under the game.** Save codes and passkeys, the shared 88x31 ones, so your player follows you to another browser and the other 88x31 games. Passkeys only work on an 88x31.app address.
+- **Carry.** USER shows the copy you carry into every 88x31 game (gold if the Moon blessed it) and every copy your account holds in any game, with Pin to carry another. A sealed sheet with all 8 answers filled marks the copy you carry.
+- New table `scatter_sessions` (`migrations/002_sessions.sql`), and the ACCOUNTS and REGISTRY bindings to dungeon-items.
+- Removed: nothing.
+
+---
+
 ## v0.1.1 — "Right Table"
 **Thu Oct 22, 2026 · 12:22 AM HST**
 

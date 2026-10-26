@@ -92,3 +92,34 @@ test("a sheet is sealed once, on the ledger, with clean answers; a wrong letter 
   assert.equal((await call("bo", "GET", "/api/today")).state, "late");
   assert.equal(env.DB.raw.prepare("SELECT COUNT(*) AS n FROM scatter_ledger WHERE kind = 'sheet'").get().n, 1);
 });
+
+test("(v0.2.0) a save code brings your player to another browser; USER shows the carried copy; a full sheet marks it", async () => {
+  const { env, call } = setup();
+  const marks = [], pins = [], links = new Map();
+  env.ACCOUNTS = {
+    async accountOf(g, p) { return { accountId: links.get(g + ":" + p) ?? null }; },
+    async createAccount() { return { accountId: 7 }; },
+    async link(a, g, p) { links.set(g + ":" + p, a); return { linked: true, playerId: p }; },
+    async addCode() { return { code: "AAAA-BBBB" }; },
+    async info() { return { codes: [{ id: 1, created_at: T0 }], passkeys: [] }; },
+    async loginCode({ code }) { return code === "AAAA-BBBB" ? { accountId: 7 } : { error: "No such save code." }; },
+    async playerFor(a, g) { for (const [k, v] of links) if (v === a && k.startsWith(g + ":")) return { playerId: Number(k.split(":")[1]) }; return { playerId: null }; },
+  };
+  env.REGISTRY = {
+    async pinned(g, p) { return { itemId: 3, copy: 2, item: { name: "Neon" }, marks: [] }; },
+    async heldAcross() { return [{ itemId: 3, copy: 2, game: "88x31", pinned: 0, item: { name: "Neon" } }]; },
+    async pin(a) { pins.push(a); return { ok: true }; },
+    async markCarried(a) { marks.push(a); return { ok: true }; },
+  };
+  assert.equal((await call("ann", "GET", "/api/account")).player, false);
+  assert.equal((await call("ann", "POST", "/api/codes", { action: "new" })).code, "AAAA-BBBB");
+  const a = await call("ann", "GET", "/api/account");
+  assert.deepEqual([a.player, a.carry, a.copies.length], [true, { name: "Neon", copy: 2, blessed: 0 }, 1]);
+  assert.equal((await call("bob", "POST", "/api/load", { code: "AAAA-BBBB" })).ok, true);
+  assert.equal((await call("bob", "GET", "/api/account")).id, a.id, "the second browser is the same player");
+  assert.equal((await call("bob", "POST", "/api/pin", { itemId: 3, copy: 2 })).ok, true);
+  assert.deepEqual(pins, [{ game: "scatter-exe", playerId: a.id, itemId: 3, copy: 2 }]);
+  const t = await call("bob", "POST", "/api/start");
+  await call("bob", "POST", "/api/sheet", { day: t.day, answers: t.categories.map(() => t.letter + "x") });
+  assert.deepEqual(marks.map((m) => [m.value, m.key, m.by.game]), [["filled_sheet", "sheet:" + t.day, "scatter-exe"]]);
+});

@@ -9,6 +9,11 @@
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
+  // (v0.2.0) save codes, passkeys and the carried copy: the shared Accounts and Registry (dungeon-items)
+  "services": [
+    { "binding": "ACCOUNTS", "service": "dungeon-items", "entrypoint": "Accounts" },
+    { "binding": "REGISTRY", "service": "dungeon-items", "entrypoint": "Registry" }
+  ],
   // SCATTER.EXE's tables live in the moba-beat database; every one of them is named scatter_...
   "d1_databases": [
     {

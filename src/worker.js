@@ -11,9 +11,13 @@
 //                                    within the time plus GRACE seconds of your start
 //
 // The rules are public/engine/scatter.js, the same file the page loads.
+//
+// (v0.2.0) Save codes, passkeys and the carried copy: src/accounts.js (GET /api/account, POST /api/codes, /load, /passkey,
+// /logout, /pin). A sealed sheet with all 8 answers filled marks the copy you carry ("filled_sheet").
 
 import { sha256, head, sheetInsert, dayEntry, isUnique } from "./ledger.js";
 import * as S from "../public/engine/scatter.js";
+import { accounts, sessionPlayer } from "./accounts.js";
 
 const COOKIE = "sx";
 const COOKIE_MAX_AGE = 400 * 86400;
@@ -81,8 +85,9 @@ const withCookie = (res, cookie) => { if (cookie) res.headers.append("set-cookie
 async function findPlayer(req, env) {
   const token = readCookie(req);
   if (!token) return null;
-  const p = await env.DB.prepare("SELECT id, seen_at FROM scatter_players WHERE token_hash = ?").bind(await sha256(token)).first();
-  if (!p) return null;
+  const h = await sha256(token);
+  const p = await env.DB.prepare("SELECT id, seen_at FROM scatter_players WHERE token_hash = ?").bind(h).first();
+  if (!p) return sessionPlayer(env, h, now());   // (v0.2.0) a browser loaded with a save code or passkey
   if (now() - p.seen_at >= SEEN_EVERY) await env.DB.prepare("UPDATE scatter_players SET seen_at = ? WHERE id = ?").bind(now(), p.id).run();
   return p;
 }
@@ -177,7 +182,13 @@ async function seal(req, env) {
       continue;
     }
     if (!res[0].meta.changes) throw new Oops("Your sheet is already sealed.", 409);
+    if (answers.every((a) => a)) await acct.markCarry(env, player.id, "filled_sheet", "sheet:" + s.day);   // (v0.2.0)
     return json(await view(env, player, s.day));
   }
   throw new Error("The ledger is busy. Try again.");
 }
+
+// ---------- accounts (v0.2.0) ----------
+const acct = accounts({ GAME: "scatter-exe", cookieFor: setCookie, clearCookie: `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+  readCookie, now: () => now(), rateLimit, findPlayer, json, Oops });
+Object.assign(ROUTES, acct.routes);
