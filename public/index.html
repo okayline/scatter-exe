@@ -32,7 +32,6 @@
     body { padding-left: 4px; padding-right: 4px; }
     .game { font-size: calc((100vw - 8px) / 32.5); }
   }
-  .ver { color: var(--dim); text-align: right; padding-right: 1ch; font-size: .8em; margin-top: .3em; }
   .d { color: var(--dim); } .t { color: var(--trail); } .b { color: var(--bright); } .g { color: var(--gold); } .e { color: var(--bad); }
   .btn { cursor: pointer; color: var(--bright); display: inline-block; }
   .btn:hover { background: var(--fg); color: var(--bg); }
@@ -47,10 +46,9 @@
 <body>
 <div class="game" id="game">
   <pre id="frame"></pre>
-  <div class="ver" id="version"></div>
+  <!-- the footer every game shows (dungeon-items src/footer.js): "© ~*~88x31~*~ cLuB, year · ≡ version"; ≡ pops up the save codes / passkeys / carry window (/api/carry) -->
+  <script src="https://dungeon-items.ddddungeon.workers.dev/footer.js" data-version="v0.3.0"></script>
 </div>
 <script type="module" src="app.js"></script>
-<script>window.CARRY_NOTE = "A sealed sheet with all 8 answers filled marks it.";</script>
-<script type="module" src="account.js"></script>
 </body>
 </html>

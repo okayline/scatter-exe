@@ -1,7 +1,6 @@
 // The page: draws the frame, runs the 2:00 timer and sends the sheet. The rules are in engine/scatter.js; the server
 // keeps the start time and checks every answer again.
 import * as S from "./engine/scatter.js";
-import { VERSION } from "./engine/version.js";
 
 const $ = (id) => document.getElementById(id);
 const FW = 80;   // the frame is 80 columns, like 4Dungeon's
@@ -158,7 +157,6 @@ document.addEventListener("keydown", (ev) => {
   if (k === "s") begin(); else if (k === "d") send();
 });
 
-$("version").textContent = "v" + VERSION;
 T = { day: "", state: "new", time: S.TIME, nextIn: 0 };
 $("frame").textContent = "LOADING TODAY'S LETTER...";
 api("GET", "/api/today").then(show).catch(() => ($("frame").textContent = "CAN'T REACH THE SERVER. RELOAD TO TRY AGAIN."));

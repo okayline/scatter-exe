@@ -43,3 +43,8 @@ test("an answer fits if it is blank or starts with the letter (any case); spaces
   assert.equal(S.clean("  mr   beast  "), "mr beast");
   assert.equal(S.clean("x".repeat(50)).length, 40);
 });
+
+test("the shared footer on the page shows VERSION", () => {
+  const page = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+  assert.ok(page.includes("/footer.js") && page.includes(`data-version="v${VERSION}"`));
+});

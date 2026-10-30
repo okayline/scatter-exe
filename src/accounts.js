@@ -143,6 +143,20 @@ export function accounts({ GAME, cookieFor, clearCookie, readCookie, now, rateLi
     return { ok: true };
   }
 
+  // The carry window (the footer's ≡): the registry's own page of every copy your account holds in any game, with the shared
+  // save codes and passkeys and logging in and out (the routes above), in this game's frame (dungeon-items carry-window.js).
+  // Its buttons pin through POST /api/pin. Same as scoundrel.exe's.
+  //   GET  /api/carry[?embed=1]     the window, as a page
+  async function carryPage(req, env) {
+    const me = await findPlayer(req, env);
+    if (!env.REGISTRY || !env.REGISTRY.carryWindow) throw new Oops("The registry is unavailable right now. Try again in a moment.", 503);
+    const id = me ? await accountFor(env, me) : null;
+    const ways = { player: !!me, ...(id ? ok(await ACC(env).info(id)) : { codes: [], passkeys: [] }) };
+    const html = await env.REGISTRY.carryWindow({ game: GAME, playerId: me ? me.id : 0, pinUrl: "/api/pin", back: "/", ways, embed: new URL(req.url).searchParams.get("embed") === "1",
+      frame: { title: "SCATTER.EXE   CARRY", paper: "#07090a", ink: "#e4e4df", edge: "#8f8f8a", accent: "#e3b341", font: '"VT323", ui-monospace, monospace' } });
+    return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+  }
+
   // Each route as the worker's (req, env) handler: its answer as JSON, with the cookie if one was set.
   const wrap = (f) => async (req, env) => {
     const ctx = { req, env, setCookie: null }, res = json(await f(ctx));
@@ -151,6 +165,7 @@ export function accounts({ GAME, cookieFor, clearCookie, readCookie, now, rateLi
   };
   return {
     routes: {
+      "GET /api/carry": carryPage,
       "GET /api/account": wrap(account), "POST /api/codes": wrap(codes), "POST /api/load": wrap(loadCode),
       "POST /api/passkey": wrap(passkey), "POST /api/logout": wrap(logout), "POST /api/pin": wrap(pinCopy),
     },
