@@ -4,6 +4,12 @@ Newest first. Times are Hawaii time (HST).
 
 ---
 
+## v0.3.1 — "Footer Spot"
+**Sat Oct 31, 2026 · 6:00 AM HST**
+
+- The footer is drawn into its own spot under the screen and stays hidden until the game has drawn, so it no longer shows up alone in the middle of the screen. Removed: the footer's old wait-for-page-load.
+- The ≡ in the footer is only a mark now; it no longer opens the save codes, passkeys and carry window. The accounts still work behind the scenes. Removed: the popup.
+
 ## Footer fixes
 **Thu Oct 29, 2026 · 9:46 PM HST** (no new version: the game itself is unchanged)
 

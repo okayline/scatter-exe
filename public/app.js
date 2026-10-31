@@ -159,4 +159,4 @@ document.addEventListener("keydown", (ev) => {
 
 T = { day: "", state: "new", time: S.TIME, nextIn: 0 };
 $("frame").textContent = "LOADING TODAY'S LETTER...";
-api("GET", "/api/today").then(show).catch(() => ($("frame").textContent = "CAN'T REACH THE SERVER. RELOAD TO TRY AGAIN."));
+api("GET", "/api/today").then(show).catch(() => ($("frame").textContent = "CAN'T REACH THE SERVER. RELOAD TO TRY AGAIN.")).finally(() => { $("ddfoot").hidden = false; });   // (v0.3.1) the footer shows only once the game has drawn, so it is never alone mid-screen
