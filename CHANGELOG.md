@@ -4,6 +4,11 @@ Newest first. Times are Hawaii time (HST).
 
 ---
 
+## v0.3.2 — "Notes Tidy"
+**Sat Oct 31, 2026 · 1:35 PM HST**
+
+- Behind the scenes only: nothing in the game changes. The repo's working notes (`CLAUDE.md`) now hold only notes for this game. Removed: the shared working-rules block that was copied into that file.
+
 ## v0.3.1 — "Footer Spot"
 **Sat Oct 31, 2026 · 6:00 AM HST**
 
